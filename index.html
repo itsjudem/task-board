@@ -159,6 +159,7 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
     <div>
       <h1 id="greet">Hi Jude</h1>
       <div class="sub" id="todayLabel"></div>
+      <div class="sub" id="clocks" style="font-size:13px;margin-top:2px"></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn ghost" id="signOut" title="Sign out">Sign out</button>
@@ -264,7 +265,11 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const pad=n=>String(n).padStart(2,"0");
 const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const parse=s=>{if(!s)return null;const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
-const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+// Board always runs on Philippine time, whatever the device clock says
+const HOME_TZ="Asia/Manila";
+const phParts=()=>Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:HOME_TZ,year:"numeric",month:"numeric",day:"numeric",hour:"numeric",hourCycle:"h23"}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+const today=()=>{const p=phParts();return new Date(+p.year,+p.month-1,+p.day)};
+const clockStr=tz=>new Date().toLocaleTimeString("en-US",{timeZone:tz,hour:"numeric",minute:"2-digit"});
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const diffDays=(a,b)=>Math.round((a-b)/864e5);
 function nice(s){const d=parse(s);if(!d)return"";const n=diffDays(d,today());
@@ -350,7 +355,7 @@ function sortT(a,b){
 function render(){
   const T=today();
   $("#todayLabel").textContent=T.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  const h=new Date().getHours(); $("#greet").textContent=(h<12?"Good morning":h<18?"Good afternoon":"Good evening")+", Jude";
+  const h=+phParts().hour; $("#clocks").textContent="🇵🇭 "+clockStr(HOME_TZ)+" Philippines · 🇺🇸 "+clockStr("America/New_York")+" US Eastern"; $("#greet").textContent=(h<12?"Good morning":h<18?"Good afternoon":"Good evening")+", Jude";
   const open=tasks.filter(t=>!t.done);
   $("#sOver").textContent=open.filter(t=>t.due&&parse(t.due)<T).length;
   $("#sToday").textContent=open.filter(t=>t.due&&diffDays(parse(t.due),T)===0).length;
@@ -501,6 +506,7 @@ $("#view").addEventListener("click",e=>{
 let tt;function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2200)}
 // refresh "today" at midnight / when returning to the tab
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)render()});
+setInterval(()=>{if(userId)render()},60000);
 
 init();
 })();
