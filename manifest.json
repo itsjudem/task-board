@@ -1,0 +1,13 @@
+{
+  "name": "Jude's Task Board",
+  "short_name": "Task Board",
+  "start_url": "/task-board/",
+  "scope": "/task-board/",
+  "display": "standalone",
+  "background_color": "#f7f2ec",
+  "theme_color": "#7b3f6e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
