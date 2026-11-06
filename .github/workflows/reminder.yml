@@ -1,0 +1,24 @@
+name: Daily task reminder
+
+on:
+  schedule:
+    - cron: "40 23 * * *"   # 7:40am Philippine time (23:40 UTC), every day
+  workflow_dispatch:         # lets you click "Run workflow" to test it
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/send-reminder.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REMINDER_TO: ${{ secrets.REMINDER_TO }}
+          SITE_URL: ${{ secrets.SITE_URL }}
