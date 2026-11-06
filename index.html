@@ -154,9 +154,11 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
 <div id="login" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px">
   <form id="loginForm" class="modal" style="max-width:400px;text-align:center">
     <h3 style="margin-bottom:6px">Jude's Task Board</h3>
-    <p class="sub" style="margin:0 0 18px">Enter your email and we'll send you a sign-in link.</p>
-    <div class="field"><input type="email" id="loginEmail" required placeholder="you@gmail.com" value="malasadojude@gmail.com"></div>
-    <button class="btn" id="loginBtn" style="width:100%">Send sign-in link</button>
+    <p class="sub" style="margin:0 0 18px">Sign in once — this device stays signed in.</p>
+    <div class="field"><input type="email" id="loginEmail" required placeholder="you@gmail.com" value="malasadojude@gmail.com" autocomplete="username"></div>
+    <div class="field"><input type="password" id="loginPass" placeholder="Password" autocomplete="current-password"></div>
+    <button class="btn" id="loginBtn" style="width:100%">Sign in</button>
+    <button type="button" class="btn ghost small" id="linkBtn" style="margin-top:10px">No password yet? Email me a sign-in link</button>
     <p class="sub" id="loginMsg" style="font-size:13px;margin-top:12px"></p>
   </form>
 </div>
@@ -168,6 +170,7 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
       <div class="sub" id="clocks" style="font-size:13px;margin-top:2px"></div>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn ghost" id="setPassBtn">Set password</button>
       <button class="btn ghost" id="signOut" title="Sign out">Sign out</button>
       <button class="btn ghost" id="manageCats">Clients &amp; lists</button>
       <button class="btn" id="addBtn">+ Add task</button>
@@ -236,6 +239,19 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
     <button class="btn ghost small" id="addCat">+ Add client or list</button>
     <div class="actions"><div class="r"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="saveCats">Save</button></div></div>
   </div>
+</div>
+
+<!-- password modal -->
+<div class="backdrop" id="passModal">
+  <form class="modal" id="passForm" style="max-width:400px" autocomplete="off">
+    <h3>Set your password</h3>
+    <p class="sub" style="margin:-8px 0 14px">Use it to sign in on any device without waiting for an email.</p>
+    <input type="email" autocomplete="username" value="malasadojude@gmail.com" style="display:none">
+    <div class="field"><label>New password (at least 8 characters)</label><input type="password" id="newPass" minlength="8" required autocomplete="new-password"></div>
+    <div class="field"><label>Type it again</label><input type="password" id="newPass2" minlength="8" required autocomplete="new-password"></div>
+    <p class="sub" id="passMsg" style="font-size:13px"></p>
+    <div class="actions"><div class="r"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn" type="submit">Save password</button></div></div>
+  </form>
 </div>
 
 <!-- confirm modal -->
@@ -308,7 +324,7 @@ const repLabel={daily:"Daily",weekdays:"Weekdays",weekly:"Weekly",biweekly:"Ever
 function catColor(name){const c=cats.find(c=>c.name===name);return c?c.color:"#999"}
 
 // ---------- storage (Supabase) ----------
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let userId=null;
 function uid(){return "t"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 const toRow=t=>({id:t.id,user_id:userId,title:t.title,category:t.category,due:t.due||null,time:t.time||null,tz:t.tz||"PH",priority:t.priority||"normal",
@@ -346,11 +362,28 @@ async function loadData(){
 
 function showLogin(show){$("#login").style.display=show?"flex":"none";$(".wrap").style.display=show?"none":"block"}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();
-  const email=$("#loginEmail").value.trim(); if(!email)return;
-  $("#loginBtn").disabled=true; $("#loginMsg").textContent="Sending…";
-  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  const email=$("#loginEmail").value.trim(), pass=$("#loginPass").value; if(!email)return;
+  if(!pass){$("#loginMsg").textContent="Type your password, or use the email link below.";return}
+  $("#loginBtn").disabled=true; $("#loginMsg").textContent="Signing in…";
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
   $("#loginBtn").disabled=false;
-  $("#loginMsg").textContent=error?("Couldn't send the link: "+error.message):"Check your email and tap the sign-in link. You can close this tab.";
+  $("#loginMsg").textContent=error?("Couldn't sign in: "+(/invalid/i.test(error.message)?"wrong email or password.":error.message)):"";
+});
+$("#linkBtn").addEventListener("click",async()=>{
+  const email=$("#loginEmail").value.trim(); if(!email)return;
+  $("#linkBtn").disabled=true; $("#loginMsg").textContent="Sending…";
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  $("#linkBtn").disabled=false;
+  $("#loginMsg").textContent=error?(/rate limit/i.test(error.message)?"Too many sign-in emails right now. Try again in about an hour.":"Couldn't send the link: "+error.message):"Check your email and tap the sign-in link. Then set a password so you won't need emails again.";
+});
+$("#setPassBtn").addEventListener("click",()=>{$("#newPass").value="";$("#newPass2").value="";$("#passMsg").textContent="";openModal("#passModal");setTimeout(()=>$("#newPass").focus(),50)});
+$("#passForm").addEventListener("submit",async e=>{e.preventDefault();
+  const a=$("#newPass").value,b=$("#newPass2").value;
+  if(a!==b){$("#passMsg").textContent="The two passwords don't match.";return}
+  $("#passMsg").textContent="Saving…";
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){$("#passMsg").textContent="Couldn't save: "+error.message;return}
+  closeModals();toast("Password saved — use it to sign in anywhere");
 });
 $("#signOut").addEventListener("click",async()=>{await sb.auth.signOut();location.reload()});
 
