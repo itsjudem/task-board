@@ -16,9 +16,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: node scripts/send-reminder.mjs
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: https://dhdxmisazbieajtmhbfm.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_USER: malasadojude@gmail.com
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          REMINDER_TO: ${{ secrets.REMINDER_TO }}
-          SITE_URL: ${{ secrets.SITE_URL }}
+          REMINDER_TO: malasadojude@gmail.com, judelyn@mysalonbooks.com
+          SITE_URL: https://itsjudem.github.io/task-board/
