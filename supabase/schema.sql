@@ -6,7 +6,8 @@ create table if not exists public.tasks (
   title       text not null,
   category    text not null default 'Personal',
   due         text,            -- YYYY-MM-DD
-  time        text,            -- HH:MM
+  time        text,            -- HH:MM (always Philippine time)
+  tz          text not null default 'PH', -- zone the deadline was entered in: PH or ET
   priority    text not null default 'normal',
   repeat      text not null default 'none',
   notes       text default '',
