@@ -204,8 +204,9 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
     </div>
     <div class="row">
       <div class="field"><label>Due date</label><input type="date" id="fDue"></div>
-      <div class="field"><label>Time (optional)</label><input type="time" id="fTime"></div>
+      <div class="field"><label>Time (optional)</label><div style="display:flex;gap:6px"><input type="time" id="fTime" style="flex:1"><select id="fTz" style="width:auto"><option value="PH">🇵🇭 PH</option><option value="ET">🇺🇸 US ET</option></select></div></div>
     </div>
+    <div class="sub" id="tzHint" style="font-size:12.5px;margin:-4px 0 6px;min-height:1em"></div>
     <div class="quick" id="quickDates">
       <button type="button" data-q="0">Today</button><button type="button" data-q="1">Tomorrow</button>
       <button type="button" data-q="fri">This Friday</button><button type="button" data-q="7">In a week</button><button type="button" data-q="none">No date</button>
@@ -269,6 +270,18 @@ const parse=s=>{if(!s)return null;const[y,m,d]=s.split("-").map(Number);return n
 const HOME_TZ="Asia/Manila";
 const phParts=()=>Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:HOME_TZ,year:"numeric",month:"numeric",day:"numeric",hour:"numeric",hourCycle:"h23"}).formatToParts(new Date()).map(p=>[p.type,p.value]));
 const today=()=>{const p=phParts();return new Date(+p.year,+p.month-1,+p.day)};
+const US_TZ="America/New_York";
+const TZ={PH:HOME_TZ,ET:US_TZ};
+function zparts(ts,tz){return Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:tz,year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date(ts)).map(p=>[p.type,p.value]))}
+function wallToUtc(date,time,tz){const[y,m,d]=date.split("-").map(Number),[h,mi]=time.split(":").map(Number);const guess=Date.UTC(y,m-1,d,h,mi);
+  const off=ts=>{const p=zparts(ts,tz);return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)-ts};let t=guess-off(guess);t=guess-off(t);return t}
+function utcToWall(ts,tz){const p=zparts(ts,tz);return{date:p.year+"-"+pad(p.month)+"-"+pad(p.day),time:pad(p.hour)+":"+pad(p.minute)}}
+function convert(date,time,from,to){return utcToWall(wallToUtc(date,time,TZ[from]),TZ[to])}
+function shortDay(s){return parse(s).toLocaleDateString("en-US",{weekday:"short"})}
+// " · 6am PH · Fri 5pm ET" (stored due/time are always PH)
+function timeBoth(t){if(!t.time||!t.due)return"";const et=convert(t.due,t.time,"PH","ET");
+  const etTxt=(et.date!==t.due?shortDay(et.date)+" ":"")+niceTime(et.time)+" ET";
+  return t.tz==="ET"?` · ${etTxt} · ${niceTime(t.time)} PH`:` · ${niceTime(t.time)} PH · ${etTxt}`}
 const clockStr=tz=>new Date().toLocaleTimeString("en-US",{timeZone:tz,hour:"numeric",minute:"2-digit"});
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const diffDays=(a,b)=>Math.round((a-b)/864e5);
@@ -292,9 +305,9 @@ function catColor(name){const c=cats.find(c=>c.name===name);return c?c.color:"#9
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let userId=null;
 function uid(){return "t"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
-const toRow=t=>({id:t.id,user_id:userId,title:t.title,category:t.category,due:t.due||null,time:t.time||null,priority:t.priority||"normal",
+const toRow=t=>({id:t.id,user_id:userId,title:t.title,category:t.category,due:t.due||null,time:t.time||null,tz:t.tz||"PH",priority:t.priority||"normal",
   repeat:t.repeat||"none",notes:t.notes||"",done:!!t.done,done_at:t.doneAt||null,created_at:t.createdAt||Date.now(),completions:t.completions||[]});
-const fromRow=r=>({id:r.id,title:r.title,category:r.category,due:r.due||"",time:r.time||"",priority:r.priority||"normal",repeat:r.repeat||"none",
+const fromRow=r=>({id:r.id,title:r.title,category:r.category,due:r.due||"",time:r.time||"",tz:r.tz||"PH",priority:r.priority||"normal",repeat:r.repeat||"none",
   notes:r.notes||"",done:!!r.done,doneAt:r.done_at?Number(r.done_at):null,createdAt:r.created_at?Number(r.created_at):null,completions:r.completions||[]});
 
 async function saveTask(t){
@@ -372,7 +385,7 @@ function render(){
 function taskHTML(t){
   const T=today(),d=parse(t.due),n=d?diffDays(d,T):null;
   let due="";
-  if(d){const cls=t.done?"":n<0?"over":n===0?"today":"";due=cls?`<span class="pill ${cls}">${n<0?Math.abs(n)+"d overdue · ":""}${nice(t.due)}${t.time?" · "+niceTime(t.time):""}</span>`:`<span>📅 ${nice(t.due)}${t.time?" · "+niceTime(t.time):""}</span>`}
+  if(d){const cls=t.done?"":n<0?"over":n===0?"today":"";due=cls?`<span class="pill ${cls}">${n<0?Math.abs(n)+"d overdue · ":""}${nice(t.due)}${timeBoth(t)}</span>`:`<span>📅 ${nice(t.due)}${timeBoth(t)}</span>`}
   return `<div class="task ${t.done?"isdone":""}" style="--cat:${esc(catColor(t.category))}">
     <button class="check ${t.done?"on":""}" data-done="${esc(t.id)}" aria-label="Mark done"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="t-main" data-edit="${esc(t.id)}">
@@ -384,7 +397,7 @@ function taskHTML(t){
 }
 function rowHTML(t){
   const T=today(),d=parse(t.due),n=d?diffDays(d,T):null;
-  let due=d?(n<0?`<span class="pill over">${Math.abs(n)}d overdue</span>`:n===0?`<span class="pill today">Today${t.time?" · "+niceTime(t.time):""}</span>`:`<span>📅 ${nice(t.due)}${t.time?" · "+niceTime(t.time):""}</span>`):"<span>No due date</span>";
+  let due=d?(n<0?`<span class="pill over">${Math.abs(n)}d overdue</span>`:n===0?`<span class="pill today">Today${timeBoth(t)}</span>`:`<span>📅 ${nice(t.due)}${timeBoth(t)}</span>`):"<span>No due date</span>";
   return `<div class="crow"><button class="check ${t.done?"on":""}" data-done="${esc(t.id)}" aria-label="Mark done"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="t-main" data-edit="${esc(t.id)}"><div class="t-title">${esc(t.title)}</div>
     <div class="t-meta">${due}${t.priority==="high"?'<span class="pill high">High</span>':""}${t.repeat&&t.repeat!=="none"?`<span class="pill rep">↻ ${repLabel[t.repeat]}</span>`:""}</div></div></div>`;
@@ -443,7 +456,10 @@ function openTask(t,presetDate,presetCat){
   $("#fCat").value=t?t.category:(presetCat||(filterCat!=="All"?filterCat:cats[0]?.name||"Personal"));
   $("#fPri").value=t?t.priority||"normal":"normal";
   $("#fDue").value=t?t.due||"":(presetDate||ymd(today()));
-  $("#fTime").value=t?t.time||"":"";
+  {const tz=t?.tz||"PH";$("#fTz").value=tz;
+  if(t&&t.time&&t.due&&tz==="ET"){const w=convert(t.due,t.time,"PH","ET");$("#fDue").value=w.date;$("#fTime").value=w.time}
+  else $("#fTime").value=t?t.time||"":"";}
+  updateTzHint();
   $("#fRep").value=t?t.repeat||"none":"none";
   $("#fNotes").value=t?t.notes||"":"";
   $("#delBtn").style.visibility=t?"visible":"hidden";
@@ -452,10 +468,15 @@ function openTask(t,presetDate,presetCat){
 $("#taskForm").addEventListener("submit",e=>{e.preventDefault();
   const old=tasks.find(t=>t.id===editingId);
   const t={...(old||{}),id:editingId||uid(),title:$("#fTitle").value.trim(),category:$("#fCat").value||"Personal",priority:$("#fPri").value,
-    due:$("#fDue").value,time:$("#fTime").value,repeat:$("#fRep").value,notes:$("#fNotes").value.trim(),done:old?!!old.done:false,createdAt:old?.createdAt||Date.now()};
+    ...(()=>{const d=$("#fDue").value,tm=$("#fTime").value,tz=$("#fTz").value;
+      if(d&&tm&&tz==="ET"){const w=convert(d,tm,"ET","PH");return{due:w.date,time:w.time,tz}}return{due:d,time:tm,tz}})(),repeat:$("#fRep").value,notes:$("#fNotes").value.trim(),done:old?!!old.done:false,createdAt:old?.createdAt||Date.now()};
   if(!t.title)return; closeModals(); saveTask(t); toast(old?"Task updated":"Task added");
 });
-$("#quickDates").addEventListener("click",e=>{const q=e.target.dataset.q;if(q==null)return;
+function updateTzHint(){const d=$("#fDue").value,tm=$("#fTime").value,tz=$("#fTz").value;let h="";
+  if(d&&tm){const other=tz==="PH"?"ET":"PH",w=convert(d,tm,tz,other);h=`= ${nice(w.date)} · ${niceTime(w.time)} ${other==="PH"?"🇵🇭 Philippines":"🇺🇸 US Eastern"}`}
+  $("#tzHint").textContent=h}
+["#fDue","#fTime","#fTz"].forEach(id=>$(id).addEventListener("input",updateTzHint));
+$("#quickDates").addEventListener("click",e=>{setTimeout(updateTzHint,0);const q=e.target.dataset.q;if(q==null)return;
   if(q==="none"){$("#fDue").value="";return}
   if(q==="fri"){const T=today();let n=(5-T.getDay()+7)%7;$("#fDue").value=ymd(addDays(T,n));return}
   $("#fDue").value=ymd(addDays(today(),+q))});

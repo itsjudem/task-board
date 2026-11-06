@@ -34,6 +34,13 @@ const groups = [
 ];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const fmt = s => new Date(s + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+const etOf = (date, time) => { // stored date/time are Philippine time (UTC+8, no DST)
+  const [y, m, d] = date.split("-").map(Number), [h, mi] = time.split(":").map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d, h - 8, mi));
+  const day = utc.toLocaleDateString("en-US", { weekday: "short", timeZone: "America/New_York" });
+  const hm = utc.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }).replace(":00", "").replace(" ", "").toLowerCase();
+  return `${day} ${hm} ET`;
+};
 const fmtTime = t => { if (!t) return ""; const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}${m ? ":" + String(m).padStart(2, "0") : ""}${h >= 12 ? "pm" : "am"}`; };
 
 const [nOver, nToday, nWeek] = groups.map(g => g[2].length);
@@ -47,7 +54,7 @@ for (const [label, color, items] of groups) {
   text += `\n${label}\n`;
   for (const t of items) {
     const d = t.due ? diff(t.due) : null;
-    const when = t.due ? fmt(t.due) + (t.time ? " · " + fmtTime(t.time) : "") : "";
+    const when = t.due ? fmt(t.due) + (t.time ? ` · ${fmtTime(t.time)} PH (${etOf(t.due, t.time)})` : "") : "";
     const late = d !== null && d < 0 ? ` (${-d}d late)` : "";
     html += `<div style="border-left:4px solid ${colors[t.category] || "#ccc"};background:#faf6f1;padding:8px 12px;margin-bottom:6px;border-radius:6px">
       <b>${esc(t.title)}</b>${t.priority === "high" ? ' <span style="color:#c2412d;font-size:12px">● High</span>' : ""}<br>
