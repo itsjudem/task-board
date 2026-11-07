@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Meeting Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: meetings list | live transcript | my notes. Same look as the Claude notetaker page. */
+:root{
+  --bg:#f3f4f7; --panel:#ffffff; --ink:#1b2130; --muted:#626a7c; --line:#dfe2ea;
+  --accent:#2f4bd1; --accent-ink:#ffffff; --accent-soft:#e7ebfc; --live:#e0362c;
+  --action:#fff1a8; --action-ink:#5b4a00; --decision:#d9f2e4; --decision-ink:#14583a;
+  --question:#fde3dc; --question-ink:#8a2a14; --rule:#e9edf6; --margin:#f2c7c7;
+  --display:"Sora",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#11141b; --panel:#181c25; --ink:#e7e9ef; --muted:#9aa1b2; --line:#2a3040;
+    --accent:#7d93ff; --accent-ink:#0d1020; --accent-soft:#232b4d; --live:#ff5a4f;
+    --action:#4a4012; --action-ink:#ffe680; --decision:#173a2a; --decision-ink:#8fe0b5;
+    --question:#462219; --question-ink:#ffb39e; --rule:#1f2431; --margin:#4a2a2e; color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font:600 15px/1 var(--display);margin:0}
+header .sp{flex:1}
+.app{display:grid;grid-template-columns:230px minmax(0,1.2fr) minmax(0,1fr);gap:14px;padding:14px 16px;flex:1;min-height:0}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pane-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.pane-head h2{font:600 12.5px/1 var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0;flex:1}
+.scroll{overflow:auto;min-height:0;flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:6px 11px;font-size:13.5px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.rec{background:var(--live);border-color:var(--live);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+select,.field{border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:var(--panel)}
+.lib-list{list-style:none;margin:0;padding:6px}
+.lib-item{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:7px;padding:9px 10px}
+.lib-item:hover{background:var(--bg)}
+.lib-item.on{background:var(--accent-soft)}
+.lib-item b{display:block;font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-item span{font-size:12px;color:var(--muted)}
+.meta{display:grid;grid-template-columns:1fr 160px;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.meta input{border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--panel);width:100%}
+#title{font:600 17px/1.3 var(--display)}
+.recbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.clock{font:500 22px/1 var(--mono);font-variant-numeric:tabular-nums;min-width:86px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.live .dot{background:var(--live);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.live .dot{animation:none}}
+.src{font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.banner{padding:9px 14px;font-size:13.5px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+.banner.warn{background:var(--question);color:var(--question-ink)}
+.banner[hidden]{display:none}
+.tx{padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.line{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:3px 0}
+.line time{font:12px/22px var(--mono);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.line p{margin:0;line-height:22px;max-width:70ch}
+.line.interim p{color:var(--muted);font-style:italic}
+.line .who{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);margin-right:6px}
+.empty{color:var(--muted);padding:16px 14px;font-size:14px;max-width:60ch}
+.empty ol{padding-left:18px;margin:8px 0 0}
+.pad{background-image:repeating-linear-gradient(var(--panel) 0 33px,var(--rule) 33px 34px);position:relative}
+.pad::before{content:"";position:absolute;left:62px;top:0;bottom:0;border-left:1.5px solid var(--margin)}
+.note{display:grid;grid-template-columns:52px 1fr auto;gap:14px;align-items:start;padding:6px 12px 6px 6px;min-height:34px}
+.note time{font:12px/22px var(--mono);color:var(--muted);text-align:right}
+.note .txt{line-height:22px;white-space:pre-wrap;word-break:break-word}
+.note .tag{font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;margin-right:6px;text-transform:uppercase;letter-spacing:.03em}
+.note.action .txt{background:var(--action);color:var(--action-ink);border-radius:3px;padding:0 4px;justify-self:start}
+.note.action .tag{color:var(--action-ink);padding-left:0}
+.note.decision .tag{background:var(--decision);color:var(--decision-ink)}
+.note.question .tag{background:var(--question);color:var(--question-ink)}
+.note .x{opacity:0;border:0;background:transparent;color:var(--muted);font-size:16px;line-height:22px}
+.note:hover .x,.note .x:focus{opacity:1}
+.composer{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.types{display:flex;gap:6px;flex-wrap:wrap}
+.types button{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:3px 11px;font-size:12.5px}
+.types button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#noteInput{flex:1;border:1px solid var(--line);border-radius:7px;padding:9px 11px;background:var(--bg);resize:none;min-height:42px}
+.kbd{font:11px var(--mono);color:var(--muted)}
+.foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{font-size:13px;color:var(--muted)}
+.dialog{position:fixed;inset:0;background:rgba(10,12,20,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.dialog[hidden]{display:none}
+.dialog>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;max-width:400px;width:100%;display:flex;flex-direction:column;gap:12px}
+@media (max-width:1100px){ .app{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)} #libPane{display:none} #libPane.show{display:flex;position:fixed;inset:60px auto 12px 12px;width:270px;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.25)} }
+@media (min-width:1101px){ #libToggle{display:none} }
+@media (max-width:760px){ html,body{height:auto} .app{grid-template-columns:1fr} .pane{min-height:380px} .meta{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header>
+  <button class="btn" id="libToggle">Meetings</button>
+  <h1>Live Meeting Notes</h1>
+  <span class="sp"></span>
+  <label class="src" for="lang">Language</label>
+  <select id="lang">
+    <option value="en-US">English (US)</option>
+    <option value="en-PH">English (Philippines)</option>
+    <option value="fil-PH">Filipino</option>
+    <option value="en-GB">English (UK)</option>
+    <option value="en-AU">English (Australia)</option>
+  </select>
+</header>
+
+<div class="app">
+  <aside class="pane" id="libPane" aria-label="Saved meetings">
+    <div class="pane-head"><h2>Meetings</h2><button class="btn primary" id="newBtn">New</button></div>
+    <div class="scroll"><ul class="lib-list" id="libList"></ul></div>
+    <div class="foot"><span class="status">Saved in this browser only. Right-click a meeting to delete it.</span></div>
+  </aside>
+
+  <section class="pane" aria-label="Live transcript">
+    <div class="meta">
+      <input id="title" aria-label="Meeting title" placeholder="Meeting title">
+      <input id="client" list="clients" aria-label="Client" placeholder="Client">
+      <datalist id="clients"><option>Salon Cadence</option><option>Elite</option><option>Lit Entertainment</option><option>Bill</option><option>Tiffany</option><option>Luke</option><option>Personal</option></datalist>
+    </div>
+    <div class="recbar" id="recbar">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="clock" id="clock">00:00</span>
+      <button class="btn primary" id="recBtn">Start transcribing</button>
+      <span class="src">Uses your microphone. Play the call through speakers to catch everyone.</span>
+    </div>
+    <div class="banner warn" id="unsupported" hidden>Live transcription needs Google Chrome or Microsoft Edge on a computer. You can still type notes here.</div>
+    <div class="banner" id="info" hidden></div>
+    <div class="scroll" id="txScroll"><div class="tx" id="tx"></div></div>
+    <div class="foot">
+      <button class="btn" id="copyAll">Copy for Claude</button>
+      <button class="btn" id="dlTxt">Download .txt</button>
+      <span class="status" id="foot"></span>
+    </div>
+  </section>
+
+  <section class="pane" aria-label="My notes">
+    <div class="pane-head"><h2>My notes</h2></div>
+    <div class="scroll pad" id="pad"></div>
+    <div class="composer">
+      <div class="types" role="group" aria-label="Note type">
+        <button data-type="note" aria-pressed="true">Note</button>
+        <button data-type="action" aria-pressed="false">Action item</button>
+        <button data-type="decision" aria-pressed="false">Decision</button>
+        <button data-type="question" aria-pressed="false">Question</button>
+      </div>
+      <div class="row">
+        <textarea id="noteInput" rows="1" aria-label="Type a note" placeholder="Type and press Enter…"></textarea>
+        <button class="btn" id="addBtn">Add</button>
+      </div>
+      <span class="kbd">Enter = add · a: / d: / q: = action, decision, question</span>
+    </div>
+  </section>
+</div>
+
+<div class="dialog" id="confirm" hidden>
+  <div role="dialog" aria-modal="true" aria-labelledby="confirmMsg">
+    <p id="confirmMsg" style="margin:0"></p>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="confirmNo">Cancel</button><button class="btn primary" id="confirmYes">Delete</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const fmt = sec => { sec = Math.max(0, Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  return (h? h+":"+String(m).padStart(2,"0") : String(m).padStart(2,"0")) + ":" + String(s).padStart(2,"0"); };
+const dateLabel = ts => new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"}) + " · " + new Date(ts).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+const TAG = {action:"Action", decision:"Decision", question:"Question"};
+const KEY = "live-notes-meetings";
+
+// ---------- storage ----------
+let meetings = [];
+try { meetings = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { meetings = []; }
+let saveT = null;
+function save(){ cur.updatedAt = Date.now(); if (!meetings.includes(cur)) meetings.unshift(cur);
+  clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(meetings)); }
+  catch { $("foot").textContent = "Browser storage is full. Download older meetings and delete them."; } }, 500); renderLib(); }
+const blank = () => ({id:uid(), title:"", client:"", createdAt:Date.now(), updatedAt:Date.now(), elapsed:0, lines:[], notes:[]});
+let cur = meetings[0] || blank();
+
+// ---------- library ----------
+function renderLib(){
+  const list = meetings.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  $("libList").innerHTML = list.length ? list.map(m => `<li><button class="lib-item ${m===cur?"on":""}" data-id="${m.id}"><b>${esc(m.title||"Untitled meeting")}</b><span>${esc(m.client?m.client+" · ":"")}${dateLabel(m.createdAt)} · ${(m.lines||[]).length} lines</span></button></li>`).join("")
+    : `<li class="empty">No meetings yet. Press Start transcribing when your call begins.</li>`;
+}
+$("libList").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (!b) return; if (recording) stopRec(); cur = meetings.find(m=>m.id===b.dataset.id); render(); $("libPane").classList.remove("show"); });
+let pending = null;
+$("libList").addEventListener("contextmenu", e => { const b = e.target.closest("[data-id]"); if (!b) return; e.preventDefault();
+  pending = meetings.find(m=>m.id===b.dataset.id); $("confirmMsg").textContent = `Delete “${pending.title||"Untitled meeting"}”? This can’t be undone.`; $("confirm").hidden = false; $("confirmNo").focus(); });
+$("confirmNo").onclick = () => { $("confirm").hidden = true; pending = null; };
+$("confirmYes").onclick = () => { $("confirm").hidden = true; if (!pending) return; if (recording && pending===cur) stopRec();
+  meetings = meetings.filter(m=>m!==pending); try { localStorage.setItem(KEY, JSON.stringify(meetings)); } catch {}
+  if (cur===pending) cur = meetings[0] || blank(); pending = null; render(); };
+$("newBtn").onclick = () => { if (recording) stopRec(); cur = blank(); render(); $("title").focus(); $("libPane").classList.remove("show"); };
+$("libToggle").onclick = () => $("libPane").classList.toggle("show");
+$("title").oninput = () => { cur.title = $("title").value; save(); };
+$("client").oninput = () => { cur.client = $("client").value; save(); };
+
+// ---------- clock ----------
+let startedAt = null, tick = null;
+const elapsed = () => cur.elapsed + (startedAt ? (Date.now()-startedAt)/1000 : 0);
+function renderClock(){ $("clock").textContent = fmt(elapsed()); }
+
+// ---------- transcript ----------
+let interim = "";
+function renderTx(){
+  const L = cur.lines || [];
+  if (!L.length && !interim){
+    $("tx").innerHTML = `<div class="empty"><b>How to use it during a call</b><ol>
+      <li>Open this page in Chrome on the same computer as your Zoom or Meet call.</li>
+      <li>Press <b>Start transcribing</b> and allow the microphone.</li>
+      <li>To catch everyone’s voices, play the call through your <b>speakers</b>, not headphones. With headphones on, only your side gets written down.</li>
+      <li>Type your own notes on the right. When the call ends, press <b>Copy for Claude</b> and paste it into your Meeting Notetaker page to get the summary and action items.</li></ol></div>`;
+    return;
+  }
+  const atBottom = $("txScroll").scrollHeight - $("txScroll").scrollTop - $("txScroll").clientHeight < 60;
+  $("tx").innerHTML = L.map(l => `<div class="line"><time>${fmt(l.t)}</time><p>${l.src==="tab"?'<span class="who">Call</span>':""}${esc(l.text)}</p></div>`).join("")
+    + (interim ? `<div class="line interim"><time>${fmt(elapsed())}</time><p>${esc(interim)}</p></div>` : "");
+  if (atBottom) $("txScroll").scrollTop = $("txScroll").scrollHeight;
+}
+function pushLine(text, src){
+  text = text.trim(); if (!text) return;
+  text = text.charAt(0).toUpperCase() + text.slice(1);
+  cur.lines.push({t: Math.max(0, elapsed() - 3), text, src}); save();
+}
+
+// ---------- speech recognition ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR){ $("unsupported").hidden = false; $("recBtn").disabled = true; }
+let recording = false, recs = [], wakeLock = null, tabStream = null;
+function info(t){ $("info").textContent = t; $("info").hidden = !t; }
+function makeRec(track, src){
+  const r = new SR();
+  r.continuous = true; r.interimResults = true; r.lang = $("lang").value;
+  r.onresult = e => {
+    let tmp = "";
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const res = e.results[i];
+      if (res.isFinal) pushLine(res[0].transcript, src); else tmp += res[0].transcript;
+    }
+    if (src === "mic") interim = tmp;
+    renderTx();
+  };
+  r.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed"){ info(src==="mic" ? "Microphone access was blocked. Click the lock icon in the address bar, allow the microphone, then press Start again." : "Chrome couldn’t transcribe the tab audio here. Your microphone is still being transcribed."); if (src==="mic") stopRec(); else r._dead = true; }
+    else if (e.error === "audio-capture") { info("No microphone found. Plug one in or check your sound settings."); stopRec(); }
+    else if (e.error === "network") info("Lost connection to Chrome’s speech service. Retrying…");
+  };
+  r.onend = () => { if (recording && !r._dead){ try { track ? r.start(track) : r.start(); } catch {} } }; // Chrome stops after silence; restart
+  try { track ? r.start(track) : r.start(); } catch(err){ if (track) return null; throw err; }
+  return r;
+}
+async function startRec(){
+  if (!cur.title){ cur.title = "Meeting " + new Date().toLocaleDateString(undefined,{month:"short",day:"numeric"}); $("title").value = cur.title; }
+  recording = true; startedAt = Date.now(); interim = ""; info("");
+  try { recs.push(makeRec(null, "mic")); } catch(err){ info("Couldn’t start transcription: " + err.message); recording = false; startedAt = null; return; }
+  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  tick = setInterval(() => { renderClock(); }, 500);
+  save(); renderRecState();
+}
+function stopRec(){
+  recording = false;
+  recs.forEach(r => { try { r.stop(); } catch {} }); recs = [];
+  if (interim) { pushLine(interim, "mic"); interim = ""; }
+  if (startedAt){ cur.elapsed = elapsed(); startedAt = null; }
+  try { wakeLock?.release(); } catch {} wakeLock = null;
+  clearInterval(tick); save(); renderRecState(); renderTx(); renderClock();
+}
+function renderRecState(){
+  $("recbar").classList.toggle("live", recording);
+  $("recBtn").textContent = recording ? "Stop" : (cur.lines.length ? "Resume transcribing" : "Start transcribing");
+  $("recBtn").className = "btn " + (recording ? "rec" : "primary");
+  $("lang").disabled = recording;
+}
+$("recBtn").onclick = () => recording ? stopRec() : startRec();
+document.addEventListener("visibilitychange", async () => { if (recording && document.visibilityState==="visible" && !wakeLock) { try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {} } });
+try { const l = localStorage.getItem("live-notes-lang"); if (l) $("lang").value = l; } catch {}
+$("lang").onchange = () => { try { localStorage.setItem("live-notes-lang", $("lang").value); } catch {} };
+
+// ---------- my notes ----------
+let noteType = "note";
+function renderNotes(){
+  const n = cur.notes || [];
+  $("pad").innerHTML = n.length ? n.map((x,i)=>`<div class="note ${x.type}"><time>${fmt(x.t)}</time><div class="txt">${TAG[x.type]?`<span class="tag">${TAG[x.type]}</span>`:""}${esc(x.text)}</div><button class="x" data-i="${i}" aria-label="Delete note">×</button></div>`).join("")
+    : `<div class="empty" style="padding-left:76px">Your notes go here, stamped with the meeting time.</div>`;
+  $("pad").scrollTop = $("pad").scrollHeight;
+}
+$("pad").onclick = e => { const b = e.target.closest(".x"); if (!b) return; cur.notes.splice(+b.dataset.i,1); save(); renderNotes(); };
+function setType(t){ noteType = t; document.querySelectorAll(".types button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.type===t))); }
+document.querySelector(".types").onclick = e => { const b = e.target.closest("button"); if (b){ setType(b.dataset.type); $("noteInput").focus(); } };
+function addNote(){
+  let text = $("noteInput").value.trim(); if (!text) return;
+  let type = noteType; const m = text.match(/^(a|d|q):\s*/i);
+  if (m){ type = {a:"action",d:"decision",q:"question"}[m[1].toLowerCase()]; text = text.slice(m[0].length); }
+  cur.notes.push({t: elapsed(), type, text}); $("noteInput").value = ""; setType("note"); save(); renderNotes();
+}
+$("addBtn").onclick = addNote;
+$("noteInput").onkeydown = e => { if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); addNote(); } };
+
+// ---------- export ----------
+function exportText(){
+  const L = [`MEETING: ${cur.title||"Untitled"}`, `CLIENT: ${cur.client||"-"}`, `DATE: ${new Date(cur.createdAt).toLocaleString()}`, `LENGTH: ${fmt(elapsed())}`, ""];
+  if (cur.notes.length){ L.push("MY NOTES"); cur.notes.forEach(n => L.push(`[${fmt(n.t)}] ${TAG[n.type]?TAG[n.type].toUpperCase()+": ":""}${n.text}`)); L.push(""); }
+  L.push("TRANSCRIPT"); cur.lines.forEach(l => L.push(`[${fmt(l.t)}] ${l.src==="tab"?"(call) ":""}${l.text}`));
+  return L.join("\n");
+}
+function flash(t){ $("foot").textContent = t; setTimeout(()=>$("foot").textContent="", 3000); }
+$("copyAll").onclick = async () => { try { await navigator.clipboard.writeText(exportText()); flash("Copied. Paste it into the transcript box on your Claude notetaker page."); } catch { flash("Copy was blocked. Use Download .txt instead."); } };
+$("dlTxt").onclick = () => {
+  const blob = new Blob([exportText()], {type:"text/plain"}); const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = (cur.title||"meeting").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-") + ".txt";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+};
+window.addEventListener("beforeunload", e => { if (recording){ e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("pagehide", () => { if (recording) stopRec(); });
+
+// ---------- render ----------
+function render(){ $("title").value = cur.title||""; $("client").value = cur.client||""; renderClock(); renderTx(); renderNotes(); renderRecState(); renderLib(); }
+render();
+})();
+</script>
+</body>
+</html>
