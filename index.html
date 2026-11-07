@@ -97,6 +97,26 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
 .client .none{color:var(--muted);font-size:13px;padding:6px 14px 12px}
 .client .addhere{margin:auto 14px 12px;align-self:flex-start;border:1px dashed var(--line);background:none;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
 .client .addhere:hover{border-color:var(--cat);color:var(--ink)}
+.clients.single{grid-template-columns:1fr}
+.clients.single .client-head h3{font-size:22px}
+/* client dropdown */
+.catpick{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:0 6px 0 14px;height:38px;cursor:pointer}
+.catpick:hover{border-color:var(--accent)}
+.catpick .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.catpick select{border:0;background:transparent;font-weight:600;font-size:14px;padding:8px 6px 8px 0;outline:none;cursor:pointer;max-width:260px}
+/* voice */
+.qamic{border:0;background:var(--accent-soft);color:var(--accent);border-radius:999px;width:38px;height:38px;flex:none;cursor:pointer;font-size:17px}
+.qamic:hover{background:var(--accent);color:#fff}
+.micbtn{width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:28px;cursor:pointer;flex:none;box-shadow:0 6px 18px rgba(123,63,110,.3);transition:transform .1s}
+.micbtn:active{transform:scale(.95)}
+.micbtn.on{background:var(--danger);animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(194,65,45,.45)}70%{box-shadow:0 0 0 16px rgba(194,65,45,0)}100%{box-shadow:0 0 0 0 rgba(194,65,45,0)}}
+.draft{border:1px solid var(--line);border-left:4px solid var(--cat);border-radius:12px;padding:10px;margin-bottom:8px;background:#fff}
+.draft .drow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.draft input,.draft select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;font-size:13.5px;outline:none}
+.draft .dTitle{flex:1;font-weight:600;font-size:14.5px;min-width:200px}
+.draft .dsum{font-size:12.5px;color:var(--muted)}
+#voiceModal .modal{max-height:88vh;overflow:auto}
 /* calendar */
 .cal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -173,6 +193,7 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
       <button class="btn ghost" id="setPassBtn">Set password</button>
       <button class="btn ghost" id="signOut" title="Sign out">Sign out</button>
       <button class="btn ghost" id="manageCats">Clients &amp; lists</button>
+      <button class="btn ghost" id="voiceBtn" title="Talk to add tasks (⌘⇧K)">🎤 Talk</button>
       <button class="btn" id="addBtn">+ Add task</button>
     </div>
   </header>
@@ -187,14 +208,16 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
   </div>
 
   <form class="quickadd" id="quickAdd" autocomplete="off">
-    <input id="qaTitle" placeholder="Add a task… e.g. Send invoice to Talat" required>
+    <button type="button" class="qamic" id="qaMic" title="Talk to add tasks (⌘⇧K)">🎤</button>
+    <input id="qaTitle" placeholder="Add a task… or tap 🎤 and just say it" required>
     <select id="qaCat" aria-label="Client"></select>
     <input type="date" id="qaDue" aria-label="Due date">
     <button class="btn" type="submit">Add</button>
   </form>
 
   <div class="toolbar">
-    <div class="chips" id="chips"></div>
+    <label class="catpick"><span class="dot" id="catDot"></span><select id="catFilter" aria-label="Show client"></select></label>
+    <div style="flex:1"></div>
     <input class="search" id="search" placeholder="Search tasks…">
     <div class="seg"><button data-view="clients" class="on">By client</button><button data-view="list">By date</button><button data-view="cal">Calendar</button></div>
   </div>
@@ -238,6 +261,23 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
     <div id="catRows"></div>
     <button class="btn ghost small" id="addCat">+ Add client or list</button>
     <div class="actions"><div class="r"><button class="btn ghost" data-close>Cancel</button><button class="btn" id="saveCats">Save</button></div></div>
+  </div>
+</div>
+
+<!-- voice modal -->
+<div class="backdrop" id="voiceModal">
+  <div class="modal" style="max-width:620px">
+    <h3 style="margin-bottom:4px">Talk to your board</h3>
+    <p class="sub" id="vHint" style="margin:0 0 14px;font-size:13.5px">Say things like “Send invoice to Talat Friday 5pm US time, urgent. Also pay the internet bill tomorrow.”</p>
+    <div class="notice show" id="vSupport" style="display:none">This browser can't listen. Open the board in Chrome or Safari, or type what you'd say below.</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+      <button type="button" class="micbtn" id="vMic" aria-label="Start or stop listening">🎤</button>
+      <div><b id="vMicLabel">Tap to talk</b><div class="sub" style="font-size:12.5px">Say several tasks at once: use “also” or “next task” between them.</div></div>
+    </div>
+    <textarea id="vText" rows="3" placeholder="What you say shows up here. You can also type or fix it." style="width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;outline:none;resize:vertical"></textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn ghost small" id="vRead">Turn this into tasks</button></div>
+    <div id="vDrafts"></div>
+    <div class="actions"><div class="r"><button type="button" class="btn ghost" data-close>Cancel</button><button type="button" class="btn" id="vAddAll" style="display:none">Add tasks</button></div></div>
   </div>
 </div>
 
@@ -416,8 +456,10 @@ function render(){
   $("#sDone").textContent=tasks.filter(t=>t.done&&t.doneAt&&t.doneAt>=wk).length + tasks.reduce((s,t)=>s+((t.completions||[]).filter(c=>c>=wk).length),0);
   // chips
   const counts={};open.forEach(t=>counts[t.category]=(counts[t.category]||0)+1);
-  $("#chips").innerHTML=`<button class="chip ${filterCat==="All"?"on":""}" data-cat="All">All <span class="c">${open.length}</span></button>`+
-    cats.map(c=>`<button class="chip ${filterCat===c.name?"on":""}" data-cat="${esc(c.name)}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}<span class="c">${counts[c.name]||0}</span></button>`).join("");
+  $("#catFilter").innerHTML=`<option value="All">All clients (${open.length} open)</option>`+
+    cats.map(c=>`<option value="${esc(c.name)}">${esc(c.name)} (${counts[c.name]||0})</option>`).join("");
+  $("#catFilter").value=cats.some(c=>c.name===filterCat)?filterCat:"All";
+  $("#catDot").style.background=filterCat==="All"?"var(--ink)":catColor(filterCat);
   const qs=$("#qaCat"),cur=qs.value;qs.innerHTML=cats.map(c=>`<option>${esc(c.name)}</option>`).join("");qs.value=cats.some(c=>c.name===cur)?cur:(filterCat!=="All"?filterCat:cats[0]?.name||"");
   view==="clients"?renderClients():view==="list"?renderList():renderCal();
 }
@@ -445,7 +487,7 @@ function renderClients(){
   const T=today(), vis=visible().filter(t=>!t.done).sort(sortT);
   let list=filterCat==="All"?cats.slice():cats.filter(c=>c.name===filterCat);
   vis.forEach(t=>{if(!list.some(c=>c.name===t.category)&&(filterCat==="All"||filterCat===t.category))list.push({name:t.category,color:"#999"})});
-  $("#view").innerHTML=`<div class="clients">${list.map(c=>{
+  $("#view").innerHTML=`<div class="clients ${list.length===1?"single":""}">${list.map(c=>{
     const items=vis.filter(t=>t.category===c.name), over=items.filter(t=>t.due&&parse(t.due)<T).length;
     return `<section class="client" style="--cat:${esc(c.color)}"><div class="client-head"><h3>${esc(c.name)}</h3>
       <div class="meta">${items.length} open${over?` · <b>${over} overdue</b>`:""}</div></div>
@@ -483,7 +525,7 @@ function renderCal(){
 
 // ---------- modals ----------
 function openModal(id){$(id).classList.add("show")}
-function closeModals(){document.querySelectorAll(".backdrop").forEach(b=>b.classList.remove("show"))}
+function closeModals(){try{window.__stopVoice&&window.__stopVoice()}catch(e){}document.querySelectorAll(".backdrop").forEach(b=>b.classList.remove("show"))}
 document.querySelectorAll(".backdrop").forEach(b=>b.addEventListener("click",e=>{if(e.target===b||e.target.hasAttribute("data-close"))closeModals()}));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals()});
 
@@ -534,12 +576,164 @@ $("#saveCats").addEventListener("click",()=>{
   if(!uniq.some(c=>c.name===filterCat))filterCat="All";
   closeModals();saveCats(uniq);toast("Lists saved")});
 
+// ---------- voice: talk to the board ----------
+const WORDNUM={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,a:1,an:1};
+const MONTHS=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+const DOWS=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+function todayIn(tz){const p=zparts(Date.now(),TZ[tz]);return new Date(+p.year,+p.month-1,+p.day)}
+function catAliases(){ // "Elite – Talat" -> ["elite talat","elite","talat"]
+  return cats.map(c=>{const words=c.name.toLowerCase().split(/[\s–—\-&,()]+/).filter(w=>w.length>=3);
+    const al=[c.name.toLowerCase(),...words];
+    if(/salon cadence/i.test(c.name))al.push("salon cadence","cadence","sc");
+    if(/personal/i.test(c.name))al.push("personal","myself","for me","my own","home");
+    return{name:c.name,al:[...new Set(al)]}})}
+function cut(s,re){return s.replace(re," ").replace(/\s{2,}/g," ")}
+function parseOne(raw,defaultCat){
+  let s=" "+raw.trim().replace(/[“”"]/g,"")+" ", low=s.toLowerCase();
+  const t={title:"",category:defaultCat,due:"",time:"",tz:"PH",priority:"normal",repeat:"none",notes:""};
+  // time zone
+  if(/\b(us time|u\.s\.?( time)?|usa time|eastern|est|edt|e\.t\.|new york( time)?|ny time|their time|client'?s time)\b/i.test(low)){t.tz="ET";s=cut(s,/\b(in |on )?(us time|u\.s\.?( time)?|usa time|eastern( time)?|est|edt|e\.t\.|new york( time)?|ny time|their time|client'?s time)\b/ig)}
+  if(/\b(ph time|philippine time|philippines time|manila time|my time|pht|local time)\b/i.test(s)){t.tz="PH";s=cut(s,/\b(in |on )?(ph time|philippine time|philippines time|manila time|my time|pht|local time)\b/ig)}
+  // priority
+  if(/\b(low priority|not urgent|whenever)\b/i.test(s)){t.priority="low";s=cut(s,/\b(it'?s )?(low priority|not urgent|whenever)\b/ig)}
+  else if(/\b(urgent|asap|important|high priority|top priority|priority)\b/i.test(s)){t.priority="high";s=cut(s,/,?\s*\b(it'?s |make it |mark it )?(very )?(urgent|asap|important|high priority|top priority|priority)\b/ig)}
+  // repeat
+  let repDow=null;
+  const ADV="(?=\\s*($|[,.;!]|on\\b|at\\b|by\\b|from\\b|starting\\b|every\\b|until\\b|please\\b))";
+  const rp=[[new RegExp("\\b(every ?day|each day|daily"+ADV+")","i"),"daily"],[/\b(every weekday|weekdays|every work ?day|monday to friday)\b/i,"weekdays"],
+    [/\b(every (two|2) weeks|every other week|biweekly|bi-weekly)\b/i,"biweekly"],[new RegExp("\\b(every month|each month|monthly"+ADV+")","i"),"monthly"],
+    [/\bevery (sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/i,"weekly"],[new RegExp("\\b(every week|each week|weekly"+ADV+")","i"),"weekly"]];
+  for(const[re,v]of rp){const m=s.match(re);if(m){t.repeat=v;if(v==="weekly"&&m[1]&&DOWS.includes(m[1].toLowerCase()))repDow=DOWS.indexOf(m[1].toLowerCase());s=cut(s,new RegExp("\\b(and |that )?(repeat(s|ing)? )?"+re.source.slice(2),"ig"));break}}
+  // time
+  const wn=Object.keys(WORDNUM).filter(k=>k.length>2).join("|");
+  let m=s.match(new RegExp("\\b(?:at|by|before|around|@)?\\s*(\\d{1,2}|"+wn+")(?:[:.](\\d{2}))?\\s*(a\\.?\\s?m\\.?|p\\.?\\s?m\\.?|o'?clock)(?=\\W)","i"));
+  let m24=s.match(/\b(?:at|by|before|around)\s+(\d{1,2}):(\d{2})\b/i);
+  if(m){let h=isNaN(m[1])?WORDNUM[m[1].toLowerCase()]:+m[1],mi=m[2]?+m[2]:0,ap=m[3].toLowerCase().replace(/[^apm]/g,"");
+    if(ap.startsWith("p")&&h<12)h+=12; if(ap.startsWith("a")&&h===12)h=0; if(ap==="")h=(h>=1&&h<=7)?h+12:h; // "5 o'clock" -> 5pm
+    if(h<24&&mi<60){t.time=pad(h)+":"+pad(mi);s=s.replace(m[0]," ")}}
+  else if(m24){const h=+m24[1],mi=+m24[2];if(h<24&&mi<60){t.time=pad(h)+":"+pad(mi);s=s.replace(m24[0]," ")}}
+  else if(/\b(at |by |before )?noon\b/i.test(s)){t.time="12:00";s=cut(s,/\b(at |by |before )?noon\b/ig)}
+  else if(/\b(at |by )?midnight\b/i.test(s)){t.time="23:59";s=cut(s,/\b(at |by )?midnight\b/ig)}
+  else if((m=s.match(/\b(?:at|by)\s+(\d{1,2})\b(?!\s*(st|nd|rd|th|days?|weeks?|of))/i))){let h=+m[1];if(h>=1&&h<=12){if(h<=7)h+=12;t.time=pad(h)+":00";s=s.replace(m[0]," ")}}
+  else if(/\b(this |tomorrow )?(morning)\b/i.test(s)&&!/\bgood morning\b/i.test(s)){t.time="09:00";s=cut(s,/\b(in the |this )?morning\b/ig)}
+  else if(/\b(end of (the )?day|eod|close of business|cob)\b/i.test(s)){t.time="17:00";s=cut(s,/\b(by |at )?(the )?(end of (the )?day|eod|close of business|cob)\b/ig)}
+  // date (relative to "today" in the zone the deadline is in)
+  const base=todayIn(t.tz); let d=null;
+  const nextDow=(dow,forceNext)=>{let n=(dow-base.getDay()+7)%7;if(n===0||forceNext)n+= (n===0?7:0);return addDays(base,n)};
+  if((m=s.match(/\b(the )?day after tomorrow\b/i))){d=addDays(base,2);s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(today|tonight|this evening|this afternoon)\b/i))){d=base;if(/tonight|evening/i.test(m[1])&&!t.time)t.time="20:00";if(/afternoon/i.test(m[1])&&!t.time)t.time="15:00";s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(tomorrow|tmrw|tomorow)\b/i))){d=addDays(base,1);s=s.replace(m[0]," ")}
+  else if((m=s.match(new RegExp("\\bin (\\d+|"+wn+"|a|an) (day|week|month)s?\\b","i")))){const n=isNaN(m[1])?WORDNUM[m[1].toLowerCase()]:+m[1];
+    d=m[2].toLowerCase()==="day"?addDays(base,n):m[2].toLowerCase()==="week"?addDays(base,7*n):new Date(base.getFullYear(),base.getMonth()+n,base.getDate());s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(next week)\b/i))){d=addDays(base,7);s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(end of (the )?week|this weekend|weekend)\b/i))){d=nextDow(/weekend/i.test(m[1])?6:5);if(base.getDay()===(/weekend/i.test(m[1])?6:5))d=base;s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(end of (the )?month)\b/i))){d=new Date(base.getFullYear(),base.getMonth()+1,0);s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(?:on |by |this |next |coming )*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i))){
+    const dow=DOWS.indexOf(m[1].toLowerCase());let n=(dow-base.getDay()+7)%7;if(n===0)n=7;
+    d=addDays(base,n);s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(?:on |by )?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/i))||
+          (m=s.match(/\b(?:on |by )?(?:the )?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i))){
+    const monStr=isNaN(m[1])?m[1]:m[2],day=+(isNaN(m[1])?m[2]:m[1]),mon=MONTHS.indexOf(monStr.slice(0,3).toLowerCase());
+    d=new Date(base.getFullYear(),mon,day);if(d<addDays(base,-60))d=new Date(base.getFullYear()+1,mon,day);s=s.replace(m[0]," ")}
+  else if((m=s.match(/\b(?:on |by )?the (\d{1,2})(?:st|nd|rd|th)\b/i))){const day=+m[1];d=new Date(base.getFullYear(),base.getMonth(),day);if(d<base)d=new Date(base.getFullYear(),base.getMonth()+1,day);s=s.replace(m[0]," ")}
+  if(!d&&repDow!==null){let n=(repDow-base.getDay()+7)%7;d=addDays(base,n)}
+  if(!d&&(t.time||t.repeat!=="none"))d=base;
+  if(d){t.due=ymd(d)}
+  // convert a US deadline to PH for storage
+  if(t.due&&t.time&&t.tz==="ET"){const w=convert(t.due,t.time,"ET","PH");t._entered={due:t.due,time:t.time};t.due=w.date;t.time=w.time}
+  // client
+  const al=catAliases();let best=null;
+  const NOUNY={bill:/\b(the|a|an|my|this|that|our|internet|electric|electricity|water|phone|credit card|card|utility|utilities|gas|rent|pay|paying|monthly|meralco|wifi)\s+bill\b|\bbills\b/i};
+  for(const c of al)for(const a of c.al){const esc2=a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    let ok=new RegExp("\\b"+esc2+"\\b","i").test(s);
+    if(ok&&NOUNY[a]){const cap=a.charAt(0).toUpperCase()+a.slice(1);ok=new RegExp("\\b"+cap+"\\b").test(s.replace(NOUNY[a]," "))}
+    if(ok&&(!best||a.length>best.a.length))best={name:c.name,a}}
+  if(best){t.category=best.name;
+    // drop "for Talat" / "Talat:" / "under Bill" / "client Luke" / "in personal" but keep "send it to Talat"
+    s=s.replace(new RegExp("\\b(for|under|client|in|on|to the)\\s+(the\\s+)?("+best.a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")(\\s+(list|client|account|tasks?))?\\b","i")," ")
+     .replace(new RegExp("^\\s*("+best.a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")\\s*[:,-]?\\s+(?=\\w)(?!(wants|needs|asked|said|would|wanted|is|has|says|told)\\b)","i")," ");
+    for(const a2 of al.find(c=>c.name===best.name).al){s=s.replace(new RegExp("^\\s*"+a2.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*[:,-]?\\s+(?=[a-z])(?!(wants|needs|asked|said|would|wanted|is|has|says|told)\\b)","i")," ")}
+    if(/^(personal|myself|for me|my own|home)$/i.test(best.a))s=s.replace(new RegExp("\\b"+best.a+"\\b","i")," ")}
+  // tidy the title
+  s=s.replace(/^\s*(ok(ay)?|so|um+|uh+|hey board|board|please|can you|could you)\b[\s,]*/i," ")
+     .replace(/\b(please )?(add|create|make|put|set)( a| an| new)? (task|reminder|to-?do)( for me)?( to| that says| called)?\b/i," ")
+     .replace(/\b(remind me to|remind me|i need to|i have to|i must|i should|don'?t forget to|need to|have to|i gotta|gotta)\b/i," ")
+     .replace(/\b(it'?s )?due\b/ig," ").replace(/\bdeadline( is)?\b/ig," ")
+     .replace(/\s+[,.]/g,",").replace(/\s{2,}/g," ").trim()
+     .replace(/^(and|then|also|to|for|on|at|by|the)\s+/i,"").replace(/\s+(on|at|by|for|before|due|and|the|this|next|in|of)\s*[,.]?$/i,"").replace(/[\s,.;:-]+$/,"").replace(/^[\s,.;:-]+/,"");
+  s=s.replace(/\s+(on|at|by|for|before|due|and|the|this|next|in|of)$/i,"").trim();
+  t.title=s?s.charAt(0).toUpperCase()+s.slice(1):"";
+  return t;
+}
+function parseSpeech(text,defaultCat){
+  const parts=text.replace(/\n+/g,". ").split(/(?:[.;!?]\s+|,\s*and\s+(?=[a-z]+\s)|\s*\b(?:and then|also|next task|another task|another one|plus|after that|then|and also)\b\s*)/i)
+    .map(x=>x&&x.trim()).filter(x=>x&&x.replace(/\W/g,"").length>2);
+  // fold fragments that are only a date/time/client into the previous task ("... to Talat. Friday 5pm.")
+  const out=[];for(const p of parts){const t=parseOne(p,defaultCat);
+    if(!t.title&&out.length){const prev=out[out.length-1];for(const k of["due","time","tz","priority","repeat"])if(t[k]&&t[k]!==({tz:"PH",priority:"normal",repeat:"none"})[k])prev[k]=t[k];if(t.category!==defaultCat)prev.category=t.category}
+    else if(t.title)out.push(t)}
+  return out;
+}
+
+// voice UI
+let rec=null,listening=false,finalText="",drafts=[];
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function voiceDefaultCat(){return filterCat!=="All"?filterCat:(cats.find(c=>/personal/i.test(c.name))?.name||cats[0]?.name||"Personal")}
+function openVoice(){finalText="";drafts=[];$("#vText").value="";$("#vDrafts").innerHTML="";$("#vAddAll").style.display="none";
+  $("#vSupport").style.display=SR?"none":"block";openModal("#voiceModal");if(SR)startListening();else $("#vText").focus()}
+function setMic(on){listening=on;$("#vMic").classList.toggle("on",on);$("#vMicLabel").textContent=on?"Listening… tap to stop":"Tap to talk"}
+function startListening(){if(!SR)return;try{rec&&rec.abort()}catch(e){}
+  rec=new SR();rec.lang="en-US";rec.continuous=true;rec.interimResults=true;
+  const startText=$("#vText").value.trim();finalText=startText?startText+" ":"";
+  rec.onresult=e=>{let interim="";for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)finalText+=r[0].transcript.trim()+". ";else interim+=r[0].transcript}
+    $("#vText").value=(finalText+interim).trim();};
+  rec.onerror=e=>{setMic(false);if(e.error==="not-allowed"||e.error==="service-not-allowed")$("#vHint").textContent="Microphone is blocked. Allow mic access for this site in your browser settings, or type below.";else if(e.error!=="aborted"&&e.error!=="no-speech")$("#vHint").textContent="Couldn't hear that ("+e.error+"). Tap the mic to try again, or type below."};
+  rec.onend=()=>{setMic(false);readText()};
+  try{rec.start();setMic(true);$("#vHint").textContent="Say things like “Send invoice to Talat Friday 5pm US time, urgent. Also pay the internet bill tomorrow.”"}catch(e){setMic(false)}}
+function stopListening(){try{rec&&rec.stop()}catch(e){};setMic(false)}
+function readText(){const txt=$("#vText").value.trim();if(!txt){$("#vDrafts").innerHTML="";$("#vAddAll").style.display="none";return}
+  drafts=parseSpeech(txt,voiceDefaultCat());renderDrafts()}
+function draftHTML(t,i){const catOpts=cats.map(c=>`<option ${c.name===t.category?"selected":""}>${esc(c.name)}</option>`).join("");
+  let shown=t.due,shownT=t.time;if(t.tz==="ET"&&t.due&&t.time){const w=convert(t.due,t.time,"PH","ET");shown=w.date;shownT=w.time}
+  return `<div class="draft" data-i="${i}" style="--cat:${esc(catColor(t.category))}">
+    <div class="drow"><input class="dTitle" value="${esc(t.title)}" placeholder="Task"><button type="button" class="iconbtn" data-drm="${i}" title="Remove">✕</button></div>
+    <div class="drow">
+      <select class="dCat">${catOpts}</select>
+      <input type="date" class="dDue" value="${shown}">
+      <input type="time" class="dTime" value="${shownT}">
+      <select class="dTz"><option value="PH" ${t.tz==="PH"?"selected":""}>🇵🇭 PH</option><option value="ET" ${t.tz==="ET"?"selected":""}>🇺🇸 ET</option></select>
+      <select class="dPri"><option value="normal">Normal</option><option value="high" ${t.priority==="high"?"selected":""}>High</option><option value="low" ${t.priority==="low"?"selected":""}>Low</option></select>
+      <select class="dRep">${[["none","No repeat"],["daily","Daily"],["weekdays","Weekdays"],["weekly","Weekly"],["biweekly","Every 2 wks"],["monthly","Monthly"]].map(([v,l])=>`<option value="${v}" ${t.repeat===v?"selected":""}>${l}</option>`).join("")}</select>
+    </div>
+    <div class="dsum">${t.due?"📅 "+nice(t.due)+timeBoth(t):"No due date"}</div></div>`}
+function renderDrafts(){const box=$("#vDrafts");
+  if(!drafts.length){box.innerHTML=`<div class="sub" style="font-size:13px">I couldn't find a task in that. Try “Call Luke tomorrow at 3pm”.</div>`;$("#vAddAll").style.display="none";return}
+  box.innerHTML=`<div class="sub" style="font-size:12.5px;margin:4px 0 8px">Check these, fix anything, then add:</div>`+drafts.map(draftHTML).join("");
+  $("#vAddAll").style.display="";$("#vAddAll").textContent=drafts.length===1?"Add task":`Add ${drafts.length} tasks`}
+function readDraft(el){const tz=el.querySelector(".dTz").value;let due=el.querySelector(".dDue").value,time=el.querySelector(".dTime").value;
+  if(due&&time&&tz==="ET"){const w=convert(due,time,"ET","PH");due=w.date;time=w.time}
+  return{title:el.querySelector(".dTitle").value.trim(),category:el.querySelector(".dCat").value,due,time,tz,priority:el.querySelector(".dPri").value,repeat:el.querySelector(".dRep").value}}
+$("#vDrafts").addEventListener("change",e=>{const el=e.target.closest(".draft");if(!el)return;const i=+el.dataset.i;drafts[i]={...drafts[i],...readDraft(el)};
+  el.style.setProperty("--cat",catColor(drafts[i].category));el.querySelector(".dsum").textContent=drafts[i].due?"📅 "+nice(drafts[i].due)+timeBoth(drafts[i]):"No due date"});
+$("#vDrafts").addEventListener("click",e=>{const b=e.target.closest("[data-drm]");if(!b)return;drafts.splice(+b.dataset.drm,1);renderDrafts()});
+$("#vMic").addEventListener("click",()=>{if(!SR){$("#vText").focus();return}listening?stopListening():startListening()});
+$("#vRead").addEventListener("click",()=>{stopListening();readText()});
+$("#vAddAll").addEventListener("click",async()=>{const els=[...document.querySelectorAll("#vDrafts .draft")];let n=0;
+  for(const el of els){const d=readDraft(el);if(!d.title)continue;n++;
+    await saveTask({id:uid(),...d,notes:"",done:false,createdAt:Date.now()})}
+  stopListening();closeModals();toast(n===1?"Task added 🎤":`${n} tasks added 🎤`)});
+document.querySelectorAll("#voiceModal [data-close]").forEach(b=>b.addEventListener("click",stopListening));
+$("#voiceBtn").addEventListener("click",openVoice);
+$("#qaMic").addEventListener("click",openVoice);
+document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.shiftKey&&e.key.toLowerCase()==="k"){e.preventDefault();openVoice()}});
+window.__parseSpeech=parseSpeech;window.__stopVoice=()=>{if(listening)stopListening()};
+
 // ---------- events ----------
 $("#addBtn").addEventListener("click",()=>openTask(null));
 $("#quickAdd").addEventListener("submit",e=>{e.preventDefault();const title=$("#qaTitle").value.trim();if(!title)return;
   saveTask({id:uid(),title,category:$("#qaCat").value||"Personal",priority:"normal",due:$("#qaDue").value,time:"",repeat:"none",notes:"",done:false,createdAt:Date.now()});
   $("#qaTitle").value="";$("#qaDue").value="";toast("Added to "+$("#qaCat").value)});
-$("#chips").addEventListener("click",e=>{const c=e.target.closest("[data-cat]");if(c){filterCat=c.dataset.cat;render()}});
+$("#catFilter").addEventListener("change",e=>{filterCat=e.target.value;render()});
 $("#search").addEventListener("input",e=>{query=e.target.value;render()});
 document.querySelector(".seg").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;view=b.dataset.view;document.querySelectorAll(".seg button").forEach(x=>x.classList.toggle("on",x===b));render()});
 document.querySelectorAll("[data-jump]").forEach(b=>b.addEventListener("click",()=>{
