@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -168,6 +168,65 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
 .day .dots{display:none}
 @media (max-width:680px){.day .dots{display:flex}}
 .day .dots i{width:6px;height:6px;border-radius:50%;display:block}
+
+.hdr-actions{display:flex;gap:8px}
+.morebtn{display:none}
+.mbar{display:none}
+/* ---------- phone layout ---------- */
+@media (max-width:680px){
+  body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  .wrap{padding:calc(16px + env(safe-area-inset-top)) 14px 24px}
+  header.top{position:relative;flex-wrap:nowrap;align-items:flex-start;margin-bottom:14px}
+  h1{font-size:25px}
+  header.top .sub{font-size:13px;margin-top:4px}
+  #clocks{font-size:12px!important}
+  .morebtn{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;font-size:22px;flex:none}
+  .hdr-actions{display:none;position:absolute;right:0;top:48px;z-index:15;flex-direction:column;align-items:stretch;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:0 12px 30px rgba(43,34,48,.15);min-width:200px}
+  .hdr-actions.open{display:flex}
+  .hdr-actions .btn{border:0;border-radius:10px;text-align:left;padding:11px 14px;background:transparent;color:var(--ink)}
+  .hdr-actions .btn:hover{background:#faf6f1}
+  .hdr-actions #addBtn,.hdr-actions #voiceBtn{display:none}
+  .stats{grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+  .stat{padding:10px 6px;text-align:center;border-radius:12px}
+  .stat .n{font-size:22px}
+  .stat .l{font-size:11px;margin-top:3px;line-height:1.2}
+  .quickadd{display:none}
+  .toolbar{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px}
+  .toolbar>div[style]{display:none}
+  .catpick{width:100%;height:44px}
+  .catpick select{max-width:none;flex:1;font-size:16px}
+  .search{width:100%;min-width:0;height:42px;font-size:16px}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr)}
+  .seg button{padding:8px 0}
+  .clients{grid-template-columns:1fr;gap:10px}
+  .client.empty{flex-direction:row;align-items:center}
+  .client.empty .client-head{flex:1;padding:12px 14px}
+  .client.empty .none{display:none}
+  .client.empty .addhere{margin:0 12px 0 0;align-self:center}
+  .client-head h3{font-size:18px}
+  .crow{padding:10px 6px}
+  .crow .check{width:24px;height:24px}
+  .task{padding:12px}
+  .mbar{display:flex;gap:10px;position:fixed;left:0;right:0;bottom:0;z-index:12;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgba(247,242,236,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  .mbar .btn{flex:1;height:50px;font-size:16px}
+  .mbar #mTalk{background:var(--card)}
+  /* sheets instead of popups */
+  .backdrop{align-items:flex-end;padding:0}
+  .modal{max-width:none!important;width:100%;border-radius:22px 22px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+  .modal h3{font-size:22px}
+  .field input,.field select,.field textarea,#vText,.draft input,.draft select,.cat-row input[type=text]{font-size:16px}
+  .row{grid-template-columns:1fr}
+  .actions .r{width:100%}
+  .actions .r .btn{flex:1;height:46px}
+  .draft .drow>*{flex:1 1 45%}
+  .draft .dTitle{flex:1 1 auto;min-width:0}
+  .draft .drow .iconbtn{flex:none}
+  #login .modal{border-radius:22px;margin:0 14px}
+  #login{align-items:center!important}
+  .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
+  .cal{padding:10px}
+  .cal-head h3{font-size:18px}
+}
 </style>
 </head>
 <body>
@@ -189,7 +248,8 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
       <div class="sub" id="todayLabel"></div>
       <div class="sub" id="clocks" style="font-size:13px;margin-top:2px"></div>
     </div>
-    <div style="display:flex;gap:8px">
+    <button class="btn ghost morebtn" id="moreBtn" aria-label="More">⋯</button>
+    <div class="hdr-actions" id="hdrActions">
       <button class="btn ghost" id="setPassBtn">Set password</button>
       <button class="btn ghost" id="signOut" title="Sign out">Sign out</button>
       <button class="btn ghost" id="manageCats">Clients &amp; lists</button>
@@ -224,6 +284,12 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
 
   <main id="view"></main>
 </div>
+
+<!-- phone bottom bar -->
+<nav class="mbar" id="mbar">
+  <button class="btn ghost" id="mTalk">🎤 Talk</button>
+  <button class="btn" id="mAdd">+ Add task</button>
+</nav>
 
 <!-- task modal -->
 <div class="backdrop" id="taskModal">
@@ -489,7 +555,7 @@ function renderClients(){
   vis.forEach(t=>{if(!list.some(c=>c.name===t.category)&&(filterCat==="All"||filterCat===t.category))list.push({name:t.category,color:"#999"})});
   $("#view").innerHTML=`<div class="clients ${list.length===1?"single":""}">${list.map(c=>{
     const items=vis.filter(t=>t.category===c.name), over=items.filter(t=>t.due&&parse(t.due)<T).length;
-    return `<section class="client" style="--cat:${esc(c.color)}"><div class="client-head"><h3>${esc(c.name)}</h3>
+    return `<section class="client ${items.length?"":"empty"}" style="--cat:${esc(c.color)}"><div class="client-head"><h3>${esc(c.name)}</h3>
       <div class="meta">${items.length} open${over?` · <b>${over} overdue</b>`:""}</div></div>
       ${items.length?`<div class="rows">${items.map(rowHTML).join("")}</div>`:`<div class="none">Nothing due — nice!</div>`}
       <button class="addhere" data-addfor="${esc(c.name)}">+ Add task</button></section>`}).join("")}</div>`;
@@ -730,6 +796,11 @@ window.__parseSpeech=parseSpeech;window.__stopVoice=()=>{if(listening)stopListen
 
 // ---------- events ----------
 $("#addBtn").addEventListener("click",()=>openTask(null));
+$("#mAdd").addEventListener("click",()=>openTask(null));
+$("#mTalk").addEventListener("click",()=>$("#voiceBtn").click());
+$("#moreBtn").addEventListener("click",e=>{e.stopPropagation();$("#hdrActions").classList.toggle("open")});
+document.addEventListener("click",e=>{if(!e.target.closest("#hdrActions"))$("#hdrActions").classList.remove("open")});
+$("#hdrActions").addEventListener("click",e=>{if(e.target.closest("button"))setTimeout(()=>$("#hdrActions").classList.remove("open"),0)});
 $("#quickAdd").addEventListener("submit",e=>{e.preventDefault();const title=$("#qaTitle").value.trim();if(!title)return;
   saveTask({id:uid(),title,category:$("#qaCat").value||"Personal",priority:"normal",due:$("#qaDue").value,time:"",repeat:"none",notes:"",done:false,createdAt:Date.now()});
   $("#qaTitle").value="";$("#qaDue").value="";toast("Added to "+$("#qaCat").value)});
