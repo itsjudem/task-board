@@ -71,6 +71,7 @@ h1{font-family:Fraunces,serif;font-weight:650;font-size:34px;line-height:1.1;mar
 .pill.high{background:var(--danger-soft);color:var(--danger)}
 .pill.over{background:var(--danger-soft);color:var(--danger)}
 .pill.today{background:var(--warn-soft);color:var(--warn)}
+.pill.gcal{background:#e6effa;color:#2f6fb0}
 .pill.rep{background:var(--accent-soft);color:var(--accent)}
 .t-notes{font-size:13px;color:var(--muted);margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:34px;text-align:center;color:var(--muted)}
@@ -538,7 +539,7 @@ function taskHTML(t){
     <div class="t-main" data-edit="${esc(t.id)}">
       <div class="t-title">${esc(t.title)}</div>
       <div class="t-meta"><span class="tag"><span class="dot" style="background:${esc(catColor(t.category))}"></span>${esc(t.category)}</span>${due}
-      ${t.priority==="high"?'<span class="pill high">High priority</span>':""}${t.repeat&&t.repeat!=="none"?`<span class="pill rep">↻ ${repLabel[t.repeat]}</span>`:""}</div>
+      ${t.priority==="high"?'<span class="pill high">High priority</span>':""}${t.repeat&&t.repeat!=="none"?`<span class="pill rep">↻ ${repLabel[t.repeat]}</span>`:""}${String(t.id).startsWith("gcal_")?'<span class="pill gcal">📅 Calendar</span>':""}</div>
       ${t.notes?`<div class="t-notes">${esc(t.notes)}</div>`:""}
     </div></div>`;
 }
@@ -547,7 +548,7 @@ function rowHTML(t){
   let due=d?(n<0?`<span class="pill over">${Math.abs(n)}d overdue</span>`:n===0?`<span class="pill today">Today${timeBoth(t)}</span>`:`<span>📅 ${nice(t.due)}${timeBoth(t)}</span>`):"<span>No due date</span>";
   return `<div class="crow"><button class="check ${t.done?"on":""}" data-done="${esc(t.id)}" aria-label="Mark done"><svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="t-main" data-edit="${esc(t.id)}"><div class="t-title">${esc(t.title)}</div>
-    <div class="t-meta">${due}${t.priority==="high"?'<span class="pill high">High</span>':""}${t.repeat&&t.repeat!=="none"?`<span class="pill rep">↻ ${repLabel[t.repeat]}</span>`:""}</div></div></div>`;
+    <div class="t-meta">${due}${t.priority==="high"?'<span class="pill high">High</span>':""}${t.repeat&&t.repeat!=="none"?`<span class="pill rep">↻ ${repLabel[t.repeat]}</span>`:""}${String(t.id).startsWith("gcal_")?'<span class="pill gcal">📅 Calendar</span>':""}</div></div></div>`;
 }
 function renderClients(){
   const T=today(), vis=visible().filter(t=>!t.done).sort(sortT);
