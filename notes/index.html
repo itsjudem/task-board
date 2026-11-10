@@ -261,7 +261,8 @@ function makeRec(track, src){
     else if (e.error === "audio-capture") { info("No microphone found. Plug one in or check your sound settings."); stopRec(); }
     else if (e.error === "network") info("Lost connection to Chrome’s speech service. Retrying…");
   };
-  r.onend = () => { if (recording && !r._dead){ try { track ? r.start(track) : r.start(); } catch {} } }; // Chrome stops after silence; restart
+  r.onend = () => { if (src === "mic" && interim){ pushLine(interim, "mic"); interim = ""; renderTx(); } // keep words Chrome hadn't finalized
+    if (recording && !r._dead){ try { track ? r.start(track) : r.start(); } catch {} } }; // Chrome stops after silence; restart
   try { track ? r.start(track) : r.start(); } catch(err){ if (track) return null; throw err; }
   return r;
 }
