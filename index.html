@@ -381,7 +381,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_-3hAoEzSLwnIpAbgaODi7Q_6kdiXl0F";
 (function(){
 const DEFAULT_CATS=[
   {name:"Elite – Talat",color:"#2f6fb0"},
-  {name:"Salon Cadence – Ronit",color:"#7b3f6e"},
+  {name:"SC – Ronit",color:"#7b3f6e"},
   {name:"Bill",color:"#2f7d5b"},
   {name:"Tiffany",color:"#c0623a"},
   {name:"Luke",color:"#8a6d1f"},
@@ -633,16 +633,25 @@ $("#delBtn").addEventListener("click",()=>{const id=editingId;closeModals();$("#
   $("#confirmYes").onclick=()=>{closeModals();removeTask(id);toast("Task deleted")}});
 
 // categories
-function catRow(c){return `<div class="cat-row"><input type="color" value="${esc(c.color)}"><input type="text" value="${esc(c.name)}" placeholder="Client or list name" class="field-like" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px"><button class="iconbtn" data-rmcat title="Remove">✕</button></div>`}
+function catRow(c){return `<div class="cat-row" data-orig="${esc(c.name)}"><input type="color" value="${esc(c.color)}"><input type="text" value="${esc(c.name)}" placeholder="Client or list name" class="field-like" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px"><button class="iconbtn" data-rmcat title="Remove">✕</button></div>`}
 $("#manageCats").addEventListener("click",()=>{$("#catRows").innerHTML=cats.map(catRow).join("");openModal("#catModal")});
 $("#addCat").addEventListener("click",()=>{const palette=["#5b6abf","#a3502f","#3b8a8a","#8a6d1f","#9c3d5a"];$("#catRows").insertAdjacentHTML("beforeend",catRow({name:"",color:palette[$("#catRows").children.length%palette.length]}));$("#catRows").lastElementChild.querySelector("input[type=text]").focus()});
 $("#catRows").addEventListener("click",e=>{if(e.target.hasAttribute("data-rmcat"))e.target.closest(".cat-row").remove()});
 $("#saveCats").addEventListener("click",()=>{
-  const list=[...$("#catRows").children].map(r=>({name:r.querySelector("input[type=text]").value.trim(),color:r.querySelector("input[type=color]").value})).filter(c=>c.name);
+  const rows=[...$("#catRows").children];
+  const list=rows.map(r=>({name:r.querySelector("input[type=text]").value.trim(),color:r.querySelector("input[type=color]").value})).filter(c=>c.name);
+  // renamed lists take their tasks with them (and two lists given the same name merge)
+  const renames=rows.map(r=>[r.dataset.orig||"",r.querySelector("input[type=text]").value.trim()]).filter(([o,n])=>o&&n&&o!==n);
   const seen=new Set(),uniq=list.filter(c=>!seen.has(c.name)&&seen.add(c.name));
   if(!uniq.length){toast("Keep at least one list");return}
   if(!uniq.some(c=>c.name===filterCat))filterCat="All";
-  closeModals();saveCats(uniq);toast("Lists saved")});
+  closeModals();saveCats(uniq);
+  if(renames.length){let moved=0;
+    for(const[o,n]of renames){tasks.forEach(t=>{if(t.category===o){t.category=n;moved++}});
+      sb.from("tasks").update({category:n}).eq("category",o).then(({error})=>{if(error)fail(error)})}
+    if(filterCat&&renames.some(([o])=>o===filterCat))filterCat=renames.find(([o])=>o===filterCat)[1];
+    render();toast(moved?`Lists saved · ${moved} task${moved===1?"":"s"} moved`:"Lists saved")}
+  else toast("Lists saved")});
 
 // ---------- voice: talk to the board ----------
 const WORDNUM={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,a:1,an:1};
@@ -652,7 +661,7 @@ function todayIn(tz){const p=zparts(Date.now(),TZ[tz]);return new Date(+p.year,+
 function catAliases(){ // "Elite – Talat" -> ["elite talat","elite","talat"]
   return cats.map(c=>{const words=c.name.toLowerCase().split(/[\s–—\-&,()]+/).filter(w=>w.length>=3);
     const al=[c.name.toLowerCase(),...words];
-    if(/salon cadence/i.test(c.name))al.push("salon cadence","cadence","sc");
+    if(/salon cadence|\bsc\b/i.test(c.name))al.push("salon cadence","cadence","sc","salon books","mysalonbooks");
     if(/personal/i.test(c.name))al.push("personal","myself","for me","my own","home");
     return{name:c.name,al:[...new Set(al)]}})}
 function cut(s,re){return s.replace(re," ").replace(/\s{2,}/g," ")}

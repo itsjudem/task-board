@@ -12,7 +12,7 @@
 
 const SUPABASE_URL = 'https://dhdxmisazbieajtmhbfm.supabase.co';
 const DAYS_AHEAD = 14;                       // how far ahead to copy events
-const DEFAULT_LIST = 'Salon Cadence – Ronit'; // list used when no client name is found in the event title
+const DEFAULT_LIST = 'SC – Ronit'; // list used when no client name is found in the event title
 const SKIP_TITLES = /^(busy|blocked|focus time|lunch|out of office|ooo)$/i;
 
 function setup() {
@@ -38,7 +38,7 @@ function syncCalendar() {
   if (!owner) throw new Error('Sign in to your task board once (and add any task) so the board has an owner.');
   const listRow = api_('GET', 'lists?select=lists&user_id=eq.' + owner, key)[0];
   const lists = (listRow && listRow.lists && listRow.lists.length) ? listRow.lists.map(l => l.name)
-    : ['Elite – Talat', 'Salon Cadence – Ronit', 'Bill', 'Tiffany', 'Luke', 'Personal'];
+    : ['Elite – Talat', 'SC – Ronit', 'Bill', 'Tiffany', 'Luke', 'Personal'];
 
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const end = new Date(start.getTime() + DAYS_AHEAD * 864e5);
@@ -96,12 +96,12 @@ function pickList_(text, lists) {
   lists.forEach(name => {
     const words = name.toLowerCase().split(/[\s–—\-&,()]+/).filter(w => w.length >= 3);
     const aliases = [name.toLowerCase()].concat(words);
-    if (/salon cadence/i.test(name)) aliases.push('salon cadence', 'cadence', 'sc');
+    if (/salon cadence|\bsc\b/i.test(name)) aliases.push('salon cadence', 'cadence', 'sc');
     aliases.forEach(a => {
       if (new RegExp('\\b' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(t) && (!best || a.length > best.a.length)) best = { name, a };
     });
   });
-  return best ? best.name : (lists.indexOf(DEFAULT_LIST) >= 0 ? DEFAULT_LIST : lists[0]);
+  return best ? best.name : (lists.indexOf(DEFAULT_LIST) >= 0 ? DEFAULT_LIST : (lists.find(n => /salon cadence|\bsc\b/i.test(n)) || lists[0]));
 }
 
 function hex_(s) {
